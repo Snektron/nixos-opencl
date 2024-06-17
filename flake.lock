@@ -1,0 +1,79 @@
+{
+  "nodes": {
+    "mesa-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1718653036,
+        "narHash": "sha256-/bd63fEdu2uvFBAbsXQkdgG4AUR779kW97AsRN+DPHI=",
+        "ref": "refs/heads/main",
+        "rev": "cfa5beeeab9565df814494ea873671ba6a6cd72c",
+        "revCount": 190767,
+        "type": "git",
+        "url": "https://gitlab.freedesktop.org/mesa/mesa.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://gitlab.freedesktop.org/mesa/mesa.git"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1718657179,
+        "narHash": "sha256-h9E93HhSRMl7R/u9rAZrfjCNfgXizS2KHVC2jad0QWA=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "27263599cc5848f386cefd8618afda8bfe66a6d7",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "pocl-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1718106213,
+        "narHash": "sha256-ONqMLvU1coz6WgG0ygjdaqCHAaoxpqrmXpoL+KO0u10=",
+        "owner": "pocl",
+        "repo": "pocl",
+        "rev": "8d1da35342914abbd2b5352e975125399e9c8ea3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "pocl",
+        "repo": "pocl",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "mesa-src": "mesa-src",
+        "nixpkgs": "nixpkgs",
+        "pocl-src": "pocl-src",
+        "shady-src": "shady-src"
+      }
+    },
+    "shady-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1718399788,
+        "narHash": "sha256-otNkilU+mG4aQAWt9UcLq7GDBD7qnTgsxq0CXnoYdAM=",
+        "ref": "refs/heads/master",
+        "rev": "91439db00c686ceeaef9628d3ddd54c4ebc51196",
+        "revCount": 1846,
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/shady-gang/shady.git"
+      },
+      "original": {
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/shady-gang/shady.git"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
