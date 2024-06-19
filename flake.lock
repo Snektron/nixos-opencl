@@ -1,5 +1,23 @@
 {
   "nodes": {
+    "clvk-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1718616092,
+        "narHash": "sha256-cc9Al/+LZ+7f8PpcZEGjESzrWf2lg/BwOTgRn3X4yT8=",
+        "ref": "refs/heads/main",
+        "rev": "d420cf8d8bbc5d624d64c69410556cde5c3f2e69",
+        "revCount": 677,
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/kpet/clvk.git"
+      },
+      "original": {
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/kpet/clvk.git"
+      }
+    },
     "mesa-src": {
       "flake": false,
       "locked": {
@@ -49,6 +67,7 @@
     },
     "root": {
       "inputs": {
+        "clvk-src": "clvk-src",
         "mesa-src": "mesa-src",
         "nixpkgs": "nixpkgs",
         "pocl-src": "pocl-src",

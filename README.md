@@ -7,6 +7,7 @@ This flake contains a dev shell with a bunch of OpenCL drivers and tooling. It c
 - A build of the master branch of [POCL](https://github.com/pocl/pocl).
 - [shady](https://github.com/shady-gang/shady)
 - [spirv2clc](https://github.com/kpet/spirv2clc)
+- [clvk](https://github.com/kpet/clvk)
 
 A single environment is constructed that brings all of these drivers together, including some that are already packaged in nixpkgs. The [Khronos OpenCL ICD Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader) is used as ICD loader to switch between drivers.
 

@@ -18,9 +18,14 @@
       url = "git+https://github.com/shady-gang/shady.git?submodules=1";
       flake = false;
     };
+
+    clvk-src = {
+      url = "git+https://github.com/kpet/clvk.git?submodules=1";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, mesa-src, pocl-src, shady-src }:
+  outputs = { self, nixpkgs, mesa-src, pocl-src, shady-src, clvk-src }:
   let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
@@ -214,12 +219,80 @@
         '';
       }) {};
 
+      clvk = pkgs.callPackage ({
+        stdenv,
+        cmake,
+        ninja,
+        python3,
+        llvmPackages_18,
+        spirv-tools,
+        vulkan-headers,
+        vulkan-loader,
+        shaderc,
+        glslang,
+        fetchpatch,
+      }: stdenv.mkDerivation {
+        pname = "clvk";
+        version = "git";
+
+        src = clvk-src;
+
+        nativeBuildInputs = [ cmake ninja python3 shaderc glslang ];
+
+        buildInputs = [
+          llvmPackages_18.llvm
+          vulkan-headers
+          vulkan-loader
+        ];
+
+        patches = [
+          (fetchpatch {
+            url = "https://github.com/google/clspv/pull/1328/commits/a34649351ffb7d047f443b3899955f8529f30d55.patch";
+            hash = "sha256-DIYGI17Vqe9UzN55eWhRF/3BBBhOVxy7fNY6IWVTdO0=";
+            stripLen = 1;
+            extraPrefix = "external/clspv/";
+            excludes = [ "external/clspv/deps.json" ];
+            revert = true;
+          })
+        ];
+
+        postPatch = ''
+          substituteInPlace external/clspv/lib/CMakeLists.txt \
+            --replace ''$\{CLSPV_LLVM_BINARY_DIR\}/lib/cmake/clang/ClangConfig.cmake \
+              ${llvmPackages_18.clang-unwrapped.dev}/lib/cmake/clang/ClangConfig.cmake
+
+          substituteInPlace external/clspv/CMakeLists.txt \
+            --replace ''$\{CLSPV_LLVM_BINARY_DIR\}/tools/clang/include \
+              ${llvmPackages_18.clang-unwrapped.dev}/include
+
+          # The in-tree build hardcodes a path to the build directory
+          # just override it with our proper out-of-tree version
+          substituteInPlace src/config.def \
+            --replace DEFAULT_LLVMSPIRV_BINARY_PATH \"${spirv-llvm-translator_18}/bin/llvm-spirv\" \
+            --replace DEFAULT_CLSPV_BINARY_PATH \"$out/clspv\"
+        '';
+
+        cmakeFlags = [
+          "-DCLVK_CLSPV_ONLINE_COMPILER=ON"
+          "-DCLVK_BUILD_TESTS=OFF" # Missing: llvm_gtest
+          # clspv
+          "-DEXTERNAL_LLVM=1"
+          "-DCLSPV_LLVM_SOURCE_DIR=${llvmPackages_18.llvm.src}/llvm"
+          "-DCLSPV_CLANG_SOURCE_DIR=${llvmPackages_18.clang-unwrapped.src}/clang"
+          "-DCLSPV_LLVM_BINARY_DIR=${llvmPackages_18.llvm.dev}"
+          # SPIRV-LLVM-Translator
+          "-DBASE_LLVM_VERSION=${llvmPackages_18.llvm.version}"
+          "-DLLVM_SPIRV_SOURCE=${spirv-llvm-translator_18.src}"
+        ];
+      }) {};
+
       ocl-vendors = pkgs.runCommand "ocl-vendors" {} ''
         mkdir -p $out/etc/OpenCL/vendors
         cp ${packages.${system}.mesa-debug-slim.opencl}/etc/OpenCL/vendors/rusticl.icd $out/etc/OpenCL/vendors/
         cp ${pkgs.rocm-opencl-icd}/etc/OpenCL/vendors/amdocl64.icd $out/etc/OpenCL/vendors/
         cp ${packages.${system}.oclcpuexp-bin}/etc/OpenCL/vendors/intelocl64.icd $out/etc/OpenCL/vendors/
         cp ${packages.${system}.pocl}/etc/OpenCL/vendors/pocl.icd $out/etc/OpenCL/vendors/
+        echo ${packages.${system}.clvk}/libOpenCL.so > $out/etc/OpenCL/vendors/clvk.icd
       '';
     };
 
@@ -244,7 +317,7 @@
         # Don't enable radeonsi:0 by default because if something goes wrong it may crash the host
         export RUSTICL_ENABLE=swrast:0
         export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ld_library_path}"
-        export OCL_ICD_VENDORS="${packages.${system}.ocl-vendors}/etc/OpenCL/vendors/";
+        export OCL_ICD_VENDORS="${packages.${system}.ocl-vendors}/etc/OpenCL/vendors/"
       '';
     };
   };
