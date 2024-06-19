@@ -89,23 +89,26 @@
         '';
       }) {};
 
-      # Otherwise pocl cannot find -lgcc
-      libgcc = pkgs.runCommand "libgcc" {} ''
-        mkdir -p $out/lib
-        cp ${pkgs.gcc-unwrapped}/lib/gcc/x86_64-unknown-linux-gnu/*/libgcc.a $out/lib/libgcc.a
-      '';
-
       pocl = pkgs.callPackage ({
         stdenv,
         gcc-unwrapped,
-        fetchFromGitHub,
         cmake,
         ninja,
         python3,
         llvmPackages_18,
         ocl-icd,
-        libxml2
-      }: stdenv.mkDerivation {
+        libxml2,
+        runCommand,
+      }: let
+        # POCL needs libgcc.a and libgcc_s.so. Note that libgcc_s.so is a linker script and not
+        # a symlink, hence we also need libgcc_s.so.1.
+        libgcc = runCommand "libgcc" {} ''
+          mkdir -p $out/lib
+          cp ${gcc-unwrapped}/lib/gcc/x86_64-unknown-linux-gnu/*/libgcc.a $out/lib/
+          ln -s ${gcc-unwrapped.lib}/lib/libgcc_s.so $out/lib/
+          ln -s ${gcc-unwrapped.lib}/lib/libgcc_s.so.1 $out/lib/
+        '';
+      in stdenv.mkDerivation {
         pname = "pocl";
         version = "git";
 
@@ -141,13 +144,12 @@
           # Required to make POCL play nice with Mesa
           # See https://github.com/pocl/pocl/blob/main/README.packaging
           "-DSTATIC_LLVM=ON"
-          "-DEXTRA_KERNEL_FLAGS=-L${gcc-unwrapped.lib}/lib;-L${libgcc}/lib"
+          "-DEXTRA_HOST_LD_FLAGS=-L${libgcc}/lib"
         ];
       }) {};
 
       shady = pkgs.callPackage ({
         stdenv,
-        fetchFromGitHub,
         cmake,
         ninja,
         llvmPackages_18,
