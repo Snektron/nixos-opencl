@@ -31,9 +31,11 @@
     pkgs = nixpkgs.legacyPackages.${system};
     lib = pkgs.lib;
   in rec {
-    packages.${system} = rec {
-      spirv-llvm-translator_18 = (pkgs.spirv-llvm-translator.override {
-        inherit (pkgs.llvmPackages_18) llvm;
+    packages.${system} = {
+      llvmPackages = pkgs.llvmPackages_18;
+
+      spirv-llvm-translator = (pkgs.spirv-llvm-translator.override {
+        inherit (packages.${system}.llvmPackages) llvm;
       });
 
       mesa-debug-slim = (pkgs.mesa.override {
@@ -41,8 +43,7 @@
         vulkanDrivers = [ ];
         vulkanLayers = [ ];
         withValgrind = false;
-        spirv-llvm-translator = spirv-llvm-translator_18;
-        llvmPackages = pkgs.llvmPackages_18;
+        inherit (packages.${system}) llvmPackages spirv-llvm-translator;
       }).overrideAttrs (old: {
         version = "git";
         src = mesa-src;
@@ -84,8 +85,12 @@
             old.outputs;
       });
 
-      intel-oneapi-runtime-compilers = pkgs.callPackage ({ stdenv, fetchurl, autoPatchelfHook, dpkg }:
-      stdenv.mkDerivation rec {
+      intel-oneapi-runtime-compilers = pkgs.callPackage ({
+        stdenv,
+        fetchurl,
+        autoPatchelfHook,
+        dpkg
+      }: stdenv.mkDerivation rec {
         pname = "intel-oneapi-runtime-compilers-2024";
         version = "2024.2.1-1079";
 
@@ -110,8 +115,15 @@
         '';
       }) {};
 
-      intel-oneapi-runtime-dpcpp-sycl-opencl-cpu = pkgs.callPackage ({ stdenv, fetchurl, autoPatchelfHook, zlib, tbb_2021_11, dpkg }:
-      stdenv.mkDerivation rec {
+      intel-oneapi-runtime-dpcpp-sycl-opencl-cpu = pkgs.callPackage ({
+        stdenv,
+        fetchurl,
+        autoPatchelfHook,
+        zlib,
+        tbb_2021_11,
+        dpkg,
+        intel-oneapi-runtime-compilers
+      }: stdenv.mkDerivation rec {
         pname = "intel-oneapi-runtime-dpcpp-sycl-opencl-cpu";
         version = "2023.2.4-49553";
 
@@ -135,7 +147,9 @@
           mkdir -p $out/etc/OpenCL/vendors
           echo $out/lib/libintelocl.so > $out/etc/OpenCL/vendors/intel-cpu.icd
         '';
-      }) {};
+      }) {
+        inherit (packages.${system}) intel-oneapi-runtime-compilers;
+      };
 
       pocl = pkgs.callPackage ({
         stdenv,
@@ -143,11 +157,12 @@
         cmake,
         ninja,
         python3,
-        llvmPackages_18,
+        llvmPackages,
         ocl-icd,
         libxml2,
         runCommand,
-        pkg-config
+        pkg-config,
+        spirv-llvm-translator
       }: let
         # POCL needs libgcc.a and libgcc_s.so. Note that libgcc_s.so is a linker script and not
         # a symlink, hence we also need libgcc_s.so.1.
@@ -165,15 +180,15 @@
           cmake
           ninja
           python3
-          llvmPackages_18.clang
+          llvmPackages.clang
         ];
 
-        buildInputs = with llvmPackages_18; [
+        buildInputs = with llvmPackages; [
           llvm
           clang-unwrapped
           clang-unwrapped.lib
           ocl-icd
-          spirv-llvm-translator_18
+          spirv-llvm-translator
           libxml2
           pkg-config
         ];
@@ -196,13 +211,15 @@
           "-DSTATIC_LLVM=ON"
           "-DEXTRA_HOST_LD_FLAGS=-L${libgcc}/lib"
         ];
-      }) {};
+      }) {
+        inherit (packages.${system}) llvmPackages spirv-llvm-translator;
+      };
 
       shady = pkgs.callPackage ({
         stdenv,
         cmake,
         ninja,
-        llvmPackages_18,
+        llvmPackages,
         libxml2,
         json_c,
       }: stdenv.mkDerivation {
@@ -217,8 +234,8 @@
         ];
 
         buildInputs = [
-          llvmPackages_18.clang
-          llvmPackages_18.llvm
+          llvmPackages.clang
+          llvmPackages.llvm
           libxml2
           json_c
         ];
@@ -236,7 +253,9 @@
           patchelf --allowed-rpath-prefixes /nix --shrink-rpath $out/bin/vcc
           patchelf --allowed-rpath-prefixes /nix --shrink-rpath $out/bin/slim
         '';
-      }) {};
+      }) {
+        inherit (packages.${system}) llvmPackages;
+      };
 
       spirv2clc = pkgs.callPackage ({
         stdenv,
@@ -271,13 +290,14 @@
         cmake,
         ninja,
         python3,
-        llvmPackages_18,
+        llvmPackages,
         spirv-tools,
         vulkan-headers,
         vulkan-loader,
         shaderc,
         glslang,
         fetchpatch,
+        spirv-llvm-translator
       }: stdenv.mkDerivation {
         pname = "clvk";
         version = "git";
@@ -287,7 +307,7 @@
         nativeBuildInputs = [ cmake ninja python3 shaderc glslang ];
 
         buildInputs = [
-          llvmPackages_18.llvm
+          llvmPackages.llvm
           vulkan-headers
           vulkan-loader
         ];
@@ -306,16 +326,16 @@
         postPatch = ''
           substituteInPlace external/clspv/lib/CMakeLists.txt \
             --replace ''$\{CLSPV_LLVM_BINARY_DIR\}/lib/cmake/clang/ClangConfig.cmake \
-              ${llvmPackages_18.clang-unwrapped.dev}/lib/cmake/clang/ClangConfig.cmake
+              ${llvmPackages.clang-unwrapped.dev}/lib/cmake/clang/ClangConfig.cmake
 
           substituteInPlace external/clspv/CMakeLists.txt \
             --replace ''$\{CLSPV_LLVM_BINARY_DIR\}/tools/clang/include \
-              ${llvmPackages_18.clang-unwrapped.dev}/include
+              ${llvmPackages.clang-unwrapped.dev}/include
 
           # The in-tree build hardcodes a path to the build directory
           # just override it with our proper out-of-tree version
           substituteInPlace src/config.def \
-            --replace DEFAULT_LLVMSPIRV_BINARY_PATH \"${spirv-llvm-translator_18}/bin/llvm-spirv\" \
+            --replace DEFAULT_LLVMSPIRV_BINARY_PATH \"${spirv-llvm-translator}/bin/llvm-spirv\" \
             --replace DEFAULT_CLSPV_BINARY_PATH \"$out/clspv\"
         '';
 
@@ -326,13 +346,13 @@
             # The LLVM Version number information
 
             if(NOT DEFINED LLVM_VERSION_MAJOR)
-              set(LLVM_VERSION_MAJOR ${lib.versions.major llvmPackages_18.llvm.version})
+              set(LLVM_VERSION_MAJOR ${lib.versions.major llvmPackages.llvm.version})
             endif()
             if(NOT DEFINED LLVM_VERSION_MINOR)
-              set(LLVM_VERSION_MINOR ${lib.versions.minor llvmPackages_18.llvm.version})
+              set(LLVM_VERSION_MINOR ${lib.versions.minor llvmPackages.llvm.version})
             endif()
             if(NOT DEFINED LLVM_VERSION_PATCH)
-              set(LLVM_VERSION_PATCH ${lib.versions.patch llvmPackages_18.llvm.version})
+              set(LLVM_VERSION_PATCH ${lib.versions.patch llvmPackages.llvm.version})
             endif()
             if(NOT DEFINED LLVM_VERSION_SUFFIX)
               set(LLVM_VERSION_SUFFIX git)
@@ -343,22 +363,24 @@
           "-DCLVK_BUILD_TESTS=OFF" # Missing: llvm_gtest
           # clspv
           "-DEXTERNAL_LLVM=1"
-          "-DCLSPV_LLVM_SOURCE_DIR=${llvmPackages_18.llvm.src}/llvm"
-          "-DCLSPV_CLANG_SOURCE_DIR=${llvmPackages_18.clang-unwrapped.src}/clang"
+          "-DCLSPV_LLVM_SOURCE_DIR=${llvmPackages.llvm.src}/llvm"
+          "-DCLSPV_CLANG_SOURCE_DIR=${llvmPackages.clang-unwrapped.src}/clang"
           "-DCLSPV_LLVM_CMAKE_MODULES_DIR=${llvm_version}"
-          "-DCLSPV_LIBCLC_SOURCE_DIR=${llvmPackages_18.libclc.src}/libclc"
-          "-DCLSPV_LLVM_BINARY_DIR=${llvmPackages_18.llvm.dev}"
-          "-DCLSPV_EXTERNAL_LIBCLC_DIR=${llvmPackages_18.libclc}/share/clc"
+          "-DCLSPV_LIBCLC_SOURCE_DIR=${llvmPackages.libclc.src}/libclc"
+          "-DCLSPV_LLVM_BINARY_DIR=${llvmPackages.llvm.dev}"
+          "-DCLSPV_EXTERNAL_LIBCLC_DIR=${llvmPackages.libclc}/share/clc"
           # SPIRV-LLVM-Translator
-          "-DBASE_LLVM_VERSION=${llvmPackages_18.llvm.version}"
-          "-DLLVM_SPIRV_SOURCE=${spirv-llvm-translator_18.src}"
+          "-DBASE_LLVM_VERSION=${llvmPackages.llvm.version}"
+          "-DLLVM_SPIRV_SOURCE=${spirv-llvm-translator.src}"
         ];
 
         postInstall = ''
           mkdir -p $out/etc/OpenCL/vendors
           echo $out/libOpenCL.so > $out/etc/OpenCL/vendors/clvk.icd
         '';
-      }) {};
+      }) {
+        inherit (packages.${system}) llvmPackages spirv-llvm-translator;
+      };
     };
 
     devShells.${system} = let
@@ -423,7 +445,7 @@
         };
 
         packages = (lib.attrsets.mapAttrsToList (name: options: options.packages or []) shells) ++ [
-          packages.${system}.spirv-llvm-translator_18
+          packages.${system}.spirv-llvm-translator
           packages.${system}.shady
           packages.${system}.spirv2clc
         ];
