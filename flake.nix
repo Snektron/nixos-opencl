@@ -29,6 +29,7 @@
   let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
+    lib = pkgs.lib;
   in rec {
     packages.${system} = rec {
       spirv-llvm-translator_18 = (pkgs.spirv-llvm-translator.override {
@@ -49,7 +50,7 @@
         mesonFlags =
           builtins.filter
             # These flags seem no longer requied
-            (flag: !(pkgs.lib.strings.hasInfix "omx-libs-path" flag || pkgs.lib.strings.hasInfix "dri-search-path" flag))
+            (flag: !(lib.strings.hasInfix "omx-libs-path" flag || lib.strings.hasInfix "dri-search-path" flag))
             (old.mesonFlags or [ ]) ++ [
               "-Dgallium-vdpau=disabled"
               "-Dgallium-va=disabled"
@@ -70,11 +71,11 @@
         # needs to actually be zink_dri.so. For now, it seems that Zink is fine
         # with using the system Vulkan.
         postFixup =
-          pkgs.lib.strings.concatStringsSep
+          lib.strings.concatStringsSep
             "\n"
             (builtins.filter
-              (line: !(pkgs.lib.strings.hasInfix "$out/lib/libgallium*.so" line))
-              (pkgs.lib.strings.splitString "\n" old.postFixup));
+              (line: !(lib.strings.hasInfix "$out/lib/libgallium*.so" line))
+              (lib.strings.splitString "\n" old.postFixup));
 
         # We don't care about microsoft here.
         outputs =
@@ -304,13 +305,13 @@
             # The LLVM Version number information
 
             if(NOT DEFINED LLVM_VERSION_MAJOR)
-              set(LLVM_VERSION_MAJOR ${pkgs.lib.versions.major llvmPackages_18.llvm.version})
+              set(LLVM_VERSION_MAJOR ${lib.versions.major llvmPackages_18.llvm.version})
             endif()
             if(NOT DEFINED LLVM_VERSION_MINOR)
-              set(LLVM_VERSION_MINOR ${pkgs.lib.versions.minor llvmPackages_18.llvm.version})
+              set(LLVM_VERSION_MINOR ${lib.versions.minor llvmPackages_18.llvm.version})
             endif()
             if(NOT DEFINED LLVM_VERSION_PATCH)
-              set(LLVM_VERSION_PATCH ${pkgs.lib.versions.patch llvmPackages_18.llvm.version})
+              set(LLVM_VERSION_PATCH ${lib.versions.patch llvmPackages_18.llvm.version})
             endif()
             if(NOT DEFINED LLVM_VERSION_SUFFIX)
               set(LLVM_VERSION_SUFFIX git)
@@ -331,41 +332,88 @@
           "-DBASE_LLVM_VERSION=${llvmPackages_18.llvm.version}"
           "-DLLVM_SPIRV_SOURCE=${spirv-llvm-translator_18.src}"
         ];
-      }) {};
 
-      ocl-vendors = pkgs.runCommand "ocl-vendors" {} ''
-        mkdir -p $out/etc/OpenCL/vendors
-        cp ${packages.${system}.mesa-debug-slim.opencl}/etc/OpenCL/vendors/rusticl.icd $out/etc/OpenCL/vendors/
-        cp ${packages.${system}.pocl}/etc/OpenCL/vendors/pocl.icd $out/etc/OpenCL/vendors/
-        cp ${packages.${system}.oclcpuexp-bin}/etc/OpenCL/vendors/intelocl64.icd $out/etc/OpenCL/vendors/
-        cp ${pkgs.rocm-opencl-icd}/etc/OpenCL/vendors/amdocl64.icd $out/etc/OpenCL/vendors/
-        echo ${packages.${system}.clvk}/libOpenCL.so > $out/etc/OpenCL/vendors/clvk.icd
-      '';
+        postInstall = ''
+          mkdir -p $out/etc/OpenCL/vendors
+          echo $out/libOpenCL.so > $out/etc/OpenCL/vendors/clvk.icd
+        '';
+      }) {};
     };
 
-    devShells.${system}.default = let
-      ld_library_path = pkgs.lib.makeLibraryPath [
+    devShells.${system} = let
+      ld_library_path = lib.makeLibraryPath [
         pkgs.khronos-ocl-icd-loader
       ];
-    in pkgs.mkShell {
-      name = "opencl";
 
-      packages = [
-        pkgs.khronos-ocl-icd-loader
-        pkgs.clinfo
-        pkgs.opencl-headers
-        pkgs.spirv-tools
-        packages.${system}.spirv-llvm-translator_18
-        packages.${system}.shady
-        packages.${system}.spirv2clc
-      ];
+      mkDevShell = { name, vendors, extraShellHook ? "", packages ? [] }: pkgs.mkShell {
+        name = "nix-opencl-${name}";
 
-      shellHook = ''
-        # Don't enable radeonsi:0 by default because if something goes wrong it may crash the host
-        export RUSTICL_ENABLE=swrast:0
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ld_library_path}"
-        export OCL_ICD_VENDORS="${packages.${system}.ocl-vendors}/etc/OpenCL/vendors/"
-      '';
+        packages = [
+          pkgs.khronos-ocl-icd-loader
+          pkgs.clinfo
+          pkgs.opencl-headers
+          pkgs.spirv-tools
+        ] ++ packages;
+
+        shellHook = ''
+          export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ld_library_path}"
+          export OCL_ICD_VENDORS="${vendors}/etc/OpenCL/vendors/"
+          ${extraShellHook}
+        '';
+      };
+
+      shells = {
+        mesa = {
+          vendors = packages.${system}.mesa-debug-slim.opencl;
+          extraShellHook = ''
+            # Don't enable radeonsi:0 by default because if something goes wrong it may crash the host
+            export RUSTICL_ENABLE=swrast:0
+          '';
+        };
+
+        pocl = {
+          vendors = packages.${system}.pocl;
+        };
+
+        intel-cpu = {
+          vendors = packages.${system}.oclcpuexp-bin;
+        };
+
+        rocm = {
+          vendors = pkgs.rocm-opencl-icd;
+        };
+
+        clvk = {
+          vendors = packages.${system}.clvk;
+        };
+      };
+    in
+      (builtins.mapAttrs
+        (name: options: mkDevShell (options // { inherit name; }))
+        shells)
+    // {
+      # The default shell has everything from the above shells combined.
+      default = mkDevShell {
+        name = "all";
+
+        vendors = pkgs.symlinkJoin {
+          name = "ocl-vendors-combined";
+          paths = lib.attrsets.mapAttrsToList (name: options: options.vendors) shells;
+        };
+
+        packages = (lib.attrsets.mapAttrsToList (name: options: options.packages or []) shells) ++ [
+          packages.${system}.spirv-llvm-translator_18
+          packages.${system}.shady
+          packages.${system}.spirv2clc
+        ];
+
+        extraShellHook =
+          lib.strings.concatStringsSep
+            "\n"
+            (lib.attrsets.mapAttrsToList
+              (name: options: options.extraShellHook or "")
+              shells);
+      };
     };
   };
 }
