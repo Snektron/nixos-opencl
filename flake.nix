@@ -27,11 +27,14 @@
 
   outputs = { self, nixpkgs, mesa-src, pocl-src, shady-src, clvk-src }:
   let
-    system = "x86_64-linux";
-    pkgs = nixpkgs.legacyPackages.${system};
-    lib = pkgs.lib;
+    systems = [ "x86_64-linux" "aarch64-linux" ];
+    lib = nixpkgs.lib;
+    forAllSystems = f: lib.genAttrs systems (system:
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+      in f system pkgs);
   in rec {
-    packages.${system} = {
+    packages = forAllSystems (system: pkgs: {
       llvmPackages = pkgs.llvmPackages_18;
 
       spirv-llvm-translator = (pkgs.spirv-llvm-translator.override {
@@ -39,7 +42,7 @@
       });
 
       mesa-debug-slim = (pkgs.mesa.override {
-        galliumDrivers = [ "iris" "swrast" "nouveau" "radeonsi" "zink" ];
+        galliumDrivers = [ "iris" "swrast" "nouveau" "radeonsi" "zink" ] ++ lib.optionals (pkgs.stdenv.hostPlatform.isAarch64) [ "v3d" ];
         vulkanDrivers = [ ];
         vulkanLayers = [ ];
         withValgrind = false;
@@ -85,72 +88,6 @@
             old.outputs;
       });
 
-      intel-oneapi-runtime-compilers = pkgs.callPackage ({
-        stdenv,
-        fetchurl,
-        autoPatchelfHook,
-        dpkg
-      }: stdenv.mkDerivation rec {
-        pname = "intel-oneapi-runtime-compilers-2024";
-        version = "2024.2.1-1079";
-
-        src = fetchurl {
-          url = "https://apt.repos.intel.com/oneapi/pool/main/${pname}-${version}_amd64.deb";
-          hash = "sha256-PTux/6v1tvFNl0jNqmSqMTb0vF8UhTbHfa+FmsqB81Y=";
-        };
-
-        nativeBuildInputs = [ autoPatchelfHook dpkg ];
-
-        dontConfigure = true;
-        dontBuild = true;
-
-        unpackPhase = "dpkg -x $src ./";
-
-        installPhase = ''
-          mkdir -p $out/lib
-          for f in "libimf.so" "libintlc.so" "libintlc.so.5" "libirng.so" "libsvml.so"; do
-            mv opt/intel/oneapi/redist/lib/$f $out/lib/
-          done
-          ls -alh $out/lib
-        '';
-      }) {};
-
-      intel-oneapi-runtime-dpcpp-sycl-opencl-cpu = pkgs.callPackage ({
-        stdenv,
-        fetchurl,
-        autoPatchelfHook,
-        zlib,
-        tbb_2021_11,
-        dpkg,
-        intel-oneapi-runtime-compilers
-      }: stdenv.mkDerivation rec {
-        pname = "intel-oneapi-runtime-dpcpp-sycl-opencl-cpu";
-        version = "2023.2.4-49553";
-
-        src = fetchurl {
-          url = "https://apt.repos.intel.com/oneapi/pool/main/${pname}-${version}_amd64.deb";
-          hash = "sha256-z8bilFjtu/dYIE4ItiZnQX6Ot99UpnaIBHm2Nmlq50I=";
-        };
-
-        nativeBuildInputs = [ autoPatchelfHook dpkg ];
-        buildInputs = [ zlib tbb_2021_11 intel-oneapi-runtime-compilers ];
-
-        dontConfigure = true;
-        dontBuild = true;
-
-        unpackPhase = "dpkg -x $src ./";
-
-        installPhase = ''
-          mkdir -p $out/lib
-          mv opt/intel/oneapi/lib/intel64/* $out/lib/
-
-          mkdir -p $out/etc/OpenCL/vendors
-          echo $out/lib/libintelocl.so > $out/etc/OpenCL/vendors/intel-cpu.icd
-        '';
-      }) {
-        inherit (packages.${system}) intel-oneapi-runtime-compilers;
-      };
-
       pocl = pkgs.callPackage ({
         stdenv,
         gcc-unwrapped,
@@ -168,7 +105,7 @@
         # a symlink, hence we also need libgcc_s.so.1.
         libgcc = runCommand "libgcc" {} ''
           mkdir -p $out/lib
-          cp ${gcc-unwrapped}/lib/gcc/x86_64-unknown-linux-gnu/*/libgcc.a $out/lib/
+          cp ${gcc-unwrapped}/lib/gcc/*/*/libgcc.a $out/lib/
           ln -s ${gcc-unwrapped.lib}/lib/libgcc_s.so $out/lib/
           ln -s ${gcc-unwrapped.lib}/lib/libgcc_s.so.1 $out/lib/
         '';
@@ -381,9 +318,76 @@
       }) {
         inherit (packages.${system}) llvmPackages spirv-llvm-translator;
       };
-    };
+    } // lib.attrsets.optionalAttrs (pkgs.stdenv.hostPlatform.isx86_64) {
+      intel-oneapi-runtime-compilers = pkgs.callPackage ({
+        stdenv,
+        fetchurl,
+        autoPatchelfHook,
+        dpkg
+      }: stdenv.mkDerivation rec {
+        pname = "intel-oneapi-runtime-compilers-2024";
+        version = "2024.2.1-1079";
 
-    devShells.${system} = let
+        src = fetchurl {
+          url = "https://apt.repos.intel.com/oneapi/pool/main/${pname}-${version}_amd64.deb";
+          hash = "sha256-PTux/6v1tvFNl0jNqmSqMTb0vF8UhTbHfa+FmsqB81Y=";
+        };
+
+        nativeBuildInputs = [ autoPatchelfHook dpkg ];
+
+        dontConfigure = true;
+        dontBuild = true;
+
+        unpackPhase = "dpkg -x $src ./";
+
+        installPhase = ''
+          mkdir -p $out/lib
+          for f in "libimf.so" "libintlc.so" "libintlc.so.5" "libirng.so" "libsvml.so"; do
+            mv opt/intel/oneapi/redist/lib/$f $out/lib/
+          done
+          ls -alh $out/lib
+        '';
+      }) {};
+
+      intel-oneapi-runtime-dpcpp-sycl-opencl-cpu = pkgs.callPackage ({
+        stdenv,
+        fetchurl,
+        autoPatchelfHook,
+        zlib,
+        tbb_2021_11,
+        dpkg,
+        intel-oneapi-runtime-compilers
+      }: stdenv.mkDerivation rec {
+        pname = "intel-oneapi-runtime-dpcpp-sycl-opencl-cpu";
+        version = "2023.2.4-49553";
+
+        src = fetchurl {
+          url = "https://apt.repos.intel.com/oneapi/pool/main/${pname}-${version}_amd64.deb";
+          hash = "sha256-z8bilFjtu/dYIE4ItiZnQX6Ot99UpnaIBHm2Nmlq50I=";
+        };
+
+        nativeBuildInputs = [ autoPatchelfHook dpkg ];
+        buildInputs = [ zlib tbb_2021_11 intel-oneapi-runtime-compilers ];
+
+        dontConfigure = true;
+        dontBuild = true;
+
+        unpackPhase = "dpkg -x $src ./";
+
+        installPhase = ''
+          mkdir -p $out/lib
+          mv opt/intel/oneapi/lib/intel64/* $out/lib/
+
+          mkdir -p $out/etc/OpenCL/vendors
+          echo $out/lib/libintelocl.so > $out/etc/OpenCL/vendors/intel-cpu.icd
+        '';
+      }) {
+        inherit (packages.${system}) intel-oneapi-runtime-compilers;
+      };
+    });
+
+    devShells = forAllSystems (system: pkgs:
+    let
       ld_library_path = lib.makeLibraryPath [
         pkgs.khronos-ocl-icd-loader
       ];
@@ -418,16 +422,16 @@
           vendors = packages.${system}.pocl;
         };
 
-        intel-cpu = {
-          vendors = packages.${system}.intel-oneapi-runtime-dpcpp-sycl-opencl-cpu;
+        clvk = {
+          vendors = packages.${system}.clvk;
         };
-
+      } // lib.attrsets.optionalAttrs (pkgs.stdenv.hostPlatform.isx86_64) {
         rocm = {
           vendors = pkgs.rocm-opencl-icd;
         };
 
-        clvk = {
-          vendors = packages.${system}.clvk;
+        intel-cpu = {
+          vendors = packages.${system}.intel-oneapi-runtime-dpcpp-sycl-opencl-cpu;
         };
       };
     in
@@ -457,6 +461,6 @@
               (name: options: options.extraShellHook or "")
               shells);
       };
-    };
+    });
   };
 }
