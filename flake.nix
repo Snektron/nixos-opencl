@@ -84,35 +84,56 @@
             old.outputs;
       });
 
-      oclcpuexp-bin = pkgs.callPackage ({ stdenv, fetchurl, autoPatchelfHook, zlib, tbb_2021_11, libxml2 }:
-      stdenv.mkDerivation {
-        pname = "oclcpuexp-bin";
-        version = "2023-WW46";
-
-        nativeBuildInputs = [ autoPatchelfHook ];
-
-        propagatedBuildInputs = [ zlib tbb_2021_11 libxml2 ];
+      intel-oneapi-runtime-compilers = pkgs.callPackage ({ stdenv, fetchurl, autoPatchelfHook, dpkg }:
+      stdenv.mkDerivation rec {
+        pname = "intel-oneapi-runtime-compilers-2024";
+        version = "2024.2.1-1079";
 
         src = fetchurl {
-          url = "https://github.com/intel/llvm/releases/download/2023-WW46/oclcpuexp-2023.16.10.0.17_rel.tar.gz";
-          hash = "sha256-959AgccjcaHXA86xKW++BPVHUiKu0vX5tAxw1BY7lUk=";
+          url = "https://apt.repos.intel.com/oneapi/pool/main/${pname}-${version}_amd64.deb";
+          hash = "sha256-PTux/6v1tvFNl0jNqmSqMTb0vF8UhTbHfa+FmsqB81Y=";
         };
 
-        sourceRoot = ".";
+        nativeBuildInputs = [ autoPatchelfHook dpkg ];
 
         dontConfigure = true;
         dontBuild = true;
 
+        unpackPhase = "dpkg -x $src ./";
+
         installPhase = ''
           mkdir -p $out/lib
-          # These require some additional external libraries
-          rm x64/libomptarget*
-          mv x64/* $out/lib
-          chmod 644 $out/lib/*
-          chmod 755 $out/lib/*.so*
+          for f in "libimf.so" "libintlc.so" "libintlc.so.5" "libirng.so" "libsvml.so"; do
+            mv opt/intel/oneapi/redist/lib/$f $out/lib/
+          done
+          ls -alh $out/lib
+        '';
+      }) {};
+
+      intel-oneapi-runtime-dpcpp-sycl-opencl-cpu = pkgs.callPackage ({ stdenv, fetchurl, autoPatchelfHook, zlib, tbb_2021_11, dpkg }:
+      stdenv.mkDerivation rec {
+        pname = "intel-oneapi-runtime-dpcpp-sycl-opencl-cpu";
+        version = "2023.2.4-49553";
+
+        src = fetchurl {
+          url = "https://apt.repos.intel.com/oneapi/pool/main/${pname}-${version}_amd64.deb";
+          hash = "sha256-z8bilFjtu/dYIE4ItiZnQX6Ot99UpnaIBHm2Nmlq50I=";
+        };
+
+        nativeBuildInputs = [ autoPatchelfHook dpkg ];
+        buildInputs = [ zlib tbb_2021_11 intel-oneapi-runtime-compilers ];
+
+        dontConfigure = true;
+        dontBuild = true;
+
+        unpackPhase = "dpkg -x $src ./";
+
+        installPhase = ''
+          mkdir -p $out/lib
+          mv opt/intel/oneapi/lib/intel64/* $out/lib/
 
           mkdir -p $out/etc/OpenCL/vendors
-          echo $out/lib/libintelocl.so > $out/etc/OpenCL/vendors/intelocl64.icd
+          echo $out/lib/libintelocl.so > $out/etc/OpenCL/vendors/intel-cpu.icd
         '';
       }) {};
 
@@ -376,7 +397,7 @@
         };
 
         intel-cpu = {
-          vendors = packages.${system}.oclcpuexp-bin;
+          vendors = packages.${system}.intel-oneapi-runtime-dpcpp-sycl-opencl-cpu;
         };
 
         rocm = {
