@@ -36,30 +36,51 @@
       });
 
       mesa-debug-slim = (pkgs.mesa.override {
-        galliumDrivers = [ "swrast" "radeonsi" "nouveau" ];
+        galliumDrivers = [ "iris" "swrast" "nouveau" "radeonsi" "zink" ];
         vulkanDrivers = [ ];
         vulkanLayers = [ ];
         withValgrind = false;
-        enableGalliumNine = false;
         spirv-llvm-translator = spirv-llvm-translator_18;
         llvmPackages = pkgs.llvmPackages_18;
       }).overrideAttrs (old: {
         version = "git";
         src = mesa-src;
         # Set some extra flags to create an extra slim build
-        mesonFlags = (old.mesonFlags or [ ]) ++ [
-          "-Dgallium-vdpau=disabled"
-          "-Dgallium-va=disabled"
-          "-Dgallium-xa=disabled"
-          "-Dandroid-libbacktrace=disabled"
-          "-Dvalgrind=disabled"
-          "-Dlibunwind=disabled"
-          "-Dlmsensors=disabled"
-          "-Db_ndebug=false"
-          "--buildtype=debug"
-        ];
+        mesonFlags =
+          builtins.filter
+            # These flags seem no longer requied
+            (flag: !(pkgs.lib.strings.hasInfix "omx-libs-path" flag || pkgs.lib.strings.hasInfix "dri-search-path" flag))
+            (old.mesonFlags or [ ]) ++ [
+              "-Dgallium-vdpau=disabled"
+              "-Dgallium-va=disabled"
+              "-Dgallium-xa=disabled"
+              "-Dandroid-libbacktrace=disabled"
+              "-Dvalgrind=disabled"
+              "-Dlibunwind=disabled"
+              "-Dlmsensors=disabled"
+              "-Db_ndebug=false"
+              "--buildtype=debug"
+            ];
+
         # Dirty patch to make one of the nixos-upstream patches working.
         patches = [ ./patches/mesa-opencl.patch ./patches/mesa-disk-cache-key.patch ./patches/mesa-rusticl-bindgen-cpp17.patch ];
+
+        # This `patchelf --add-rpath ${vulkan-loader}/lib $out/lib/libgallium*.so`
+        # doesn't work with the current version of mesa, so remove it. Likely this
+        # needs to actually be zink_dri.so. For now, it seems that Zink is fine
+        # with using the system Vulkan.
+        postFixup =
+          pkgs.lib.strings.concatStringsSep
+            "\n"
+            (builtins.filter
+              (line: !(pkgs.lib.strings.hasInfix "$out/lib/libgallium*.so" line))
+              (pkgs.lib.strings.splitString "\n" old.postFixup));
+
+        # We don't care about microsoft here.
+        outputs =
+          builtins.filter
+            (x: x != "spirv2dxil")
+            old.outputs;
       });
 
       oclcpuexp-bin = pkgs.callPackage ({ stdenv, fetchurl, autoPatchelfHook, zlib, tbb_2021_11, libxml2 }:
@@ -104,6 +125,7 @@
         ocl-icd,
         libxml2,
         runCommand,
+        pkg-config
       }: let
         # POCL needs libgcc.a and libgcc_s.so. Note that libgcc_s.so is a linker script and not
         # a symlink, hence we also need libgcc_s.so.1.
@@ -131,6 +153,7 @@
           ocl-icd
           spirv-llvm-translator_18
           libxml2
+          pkg-config
         ];
 
         src = pocl-src;
@@ -181,6 +204,8 @@
         cmakeFlags = [
           "-DCMAKE_BUILD_WITH_INSTALL_RPATH=ON"
           "-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON"
+          "-DSHADY_ENABLE_SAMPLES=OFF"
+          "-DSHADY_USE_FETCHCONTENT=OFF"
         ];
 
         patches = [ ./patches/shady.patch ];
@@ -272,14 +297,36 @@
             --replace DEFAULT_CLSPV_BINARY_PATH \"$out/clspv\"
         '';
 
-        cmakeFlags = [
+        cmakeFlags = let
+          # This file is required but its not supplied by LLVM 18, it was only added by LLVM 19.
+          llvm_version = pkgs.writeTextDir "LLVMVersion.cmake"
+            ''
+            # The LLVM Version number information
+
+            if(NOT DEFINED LLVM_VERSION_MAJOR)
+              set(LLVM_VERSION_MAJOR ${pkgs.lib.versions.major llvmPackages_18.llvm.version})
+            endif()
+            if(NOT DEFINED LLVM_VERSION_MINOR)
+              set(LLVM_VERSION_MINOR ${pkgs.lib.versions.minor llvmPackages_18.llvm.version})
+            endif()
+            if(NOT DEFINED LLVM_VERSION_PATCH)
+              set(LLVM_VERSION_PATCH ${pkgs.lib.versions.patch llvmPackages_18.llvm.version})
+            endif()
+            if(NOT DEFINED LLVM_VERSION_SUFFIX)
+              set(LLVM_VERSION_SUFFIX git)
+            endif()
+            '';
+        in [
           "-DCLVK_CLSPV_ONLINE_COMPILER=ON"
           "-DCLVK_BUILD_TESTS=OFF" # Missing: llvm_gtest
           # clspv
           "-DEXTERNAL_LLVM=1"
           "-DCLSPV_LLVM_SOURCE_DIR=${llvmPackages_18.llvm.src}/llvm"
           "-DCLSPV_CLANG_SOURCE_DIR=${llvmPackages_18.clang-unwrapped.src}/clang"
+          "-DCLSPV_LLVM_CMAKE_MODULES_DIR=${llvm_version}"
+          "-DCLSPV_LIBCLC_SOURCE_DIR=${llvmPackages_18.libclc.src}/libclc"
           "-DCLSPV_LLVM_BINARY_DIR=${llvmPackages_18.llvm.dev}"
+          "-DCLSPV_EXTERNAL_LIBCLC_DIR=${llvmPackages_18.libclc}/share/clc"
           # SPIRV-LLVM-Translator
           "-DBASE_LLVM_VERSION=${llvmPackages_18.llvm.version}"
           "-DLLVM_SPIRV_SOURCE=${spirv-llvm-translator_18.src}"
@@ -289,9 +336,9 @@
       ocl-vendors = pkgs.runCommand "ocl-vendors" {} ''
         mkdir -p $out/etc/OpenCL/vendors
         cp ${packages.${system}.mesa-debug-slim.opencl}/etc/OpenCL/vendors/rusticl.icd $out/etc/OpenCL/vendors/
-        cp ${pkgs.rocm-opencl-icd}/etc/OpenCL/vendors/amdocl64.icd $out/etc/OpenCL/vendors/
-        cp ${packages.${system}.oclcpuexp-bin}/etc/OpenCL/vendors/intelocl64.icd $out/etc/OpenCL/vendors/
         cp ${packages.${system}.pocl}/etc/OpenCL/vendors/pocl.icd $out/etc/OpenCL/vendors/
+        cp ${packages.${system}.oclcpuexp-bin}/etc/OpenCL/vendors/intelocl64.icd $out/etc/OpenCL/vendors/
+        cp ${pkgs.rocm-opencl-icd}/etc/OpenCL/vendors/amdocl64.icd $out/etc/OpenCL/vendors/
         echo ${packages.${system}.clvk}/libOpenCL.so > $out/etc/OpenCL/vendors/clvk.icd
       '';
     };

@@ -1,38 +1,3 @@
-diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 88c5852e..c21ce882 100644
---- a/CMakeLists.txt
-+++ b/CMakeLists.txt
-@@ -24,7 +24,8 @@ endif()
- 
- add_subdirectory(SPIRV-Headers)
- 
--if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24" AND ${SHADY_USE_FETCHCONTENT})
-+find_package(json-c QUIET)
-+if(NOT ${json-c_FOUND} AND CMAKE_VERSION VERSION_GREATER_EQUAL "3.24" AND ${SHADY_USE_FETCHCONTENT})
-     FetchContent_Declare(
-         json-c
-         GIT_REPOSITORY https://github.com/json-c/json-c
-@@ -60,7 +61,7 @@ if(NOT ${LLVM_FOUND} AND WIN32 AND ${SHADY_WIN32_FIX_PARTIAL_LLVM_INSTALL})
-                      IMPORTED_LOCATION "${LLVM_DIR}bin/LLVM-C.dll")
-         set_property(TARGET LLVM-C PROPERTY
-                      IMPORTED_IMPLIB "${LLVM_DIR}lib/LLVM-C.lib")
--        
-+
-         execute_process(
-             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-             COMMAND ${GIT_EXECUTABLE} clone -n --depth 1 --filter=tree:0 https://github.com/llvm/llvm-project/ --branch "llvmorg-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}"
-diff --git a/src/driver/CMakeLists.txt b/src/driver/CMakeLists.txt
-index d8dcb32f..98ecd1a4 100644
---- a/src/driver/CMakeLists.txt
-+++ b/src/driver/CMakeLists.txt
-@@ -23,6 +23,7 @@ if (TARGET shady_fe_llvm)
-     target_link_libraries(vcc_lib PUBLIC driver api)
- 
-     add_executable(vcc vcc.c)
-+    set_target_properties(vcc PROPERTIES INSTALL_RPATH $<TARGET_FILE_DIR:driver>)
-     target_link_libraries(vcc PRIVATE api vcc_lib)
-     install(TARGETS vcc_lib vcc EXPORT shady_export_set)
- 
 diff --git a/src/shady/generator/CMakeLists.txt b/src/shady/generator/CMakeLists.txt
 index d5f3f77c..8b5d5030 100644
 --- a/src/shady/generator/CMakeLists.txt
@@ -53,3 +18,22 @@ index d5f3f77c..8b5d5030 100644
  
      get_target_property(SPIRV_HEADERS_INCLUDE_DIRS SPIRV-Headers::SPIRV-Headers INTERFACE_INCLUDE_DIRECTORIES)
  
+diff --git a/vcc/CMakeLists.txt b/vcc/CMakeLists.txt
+index 6973e080..7ccce6c3 100644
+--- a/vcc/CMakeLists.txt
++++ b/vcc/CMakeLists.txt
+@@ -11,6 +11,7 @@ if (SHADY_ENABLE_VCC)
+     target_link_libraries(vcc_lib PUBLIC driver api)
+ 
+     add_executable(vcc vcc.c)
++    set_target_properties(vcc PROPERTIES INSTALL_RPATH $<TARGET_FILE_DIR:driver>)
+     target_compile_definitions(vcc_lib PRIVATE "VCC_CLANG_EXECUTABLE_NAME=${VCC_CLANG_EXECUTABLE_NAME}")
+     target_link_libraries(vcc PRIVATE api vcc_lib)
+     install(TARGETS vcc_lib vcc EXPORT shady_export_set)
+@@ -22,4 +23,4 @@ if (SHADY_ENABLE_VCC)
+         )
+     endif ()
+     #message("Vcc will be built together with shady")
+-endif ()
+\ No newline at end of file
++endif ()

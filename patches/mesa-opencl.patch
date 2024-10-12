@@ -1,11 +1,11 @@
 diff --git a/meson.build b/meson.build
-index 172c64a7c70..05961e56926 100644
+index c150bff74ff..37fa7f0531b 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -1900,7 +1900,7 @@ endif
+@@ -1850,7 +1850,7 @@ endif
  
  dep_clang = null_dep
- if with_clc
+ if with_clc or with_gallium_clover
 -  llvm_libdir = dep_llvm.get_variable(cmake : 'LLVM_LIBRARY_DIR', configtool: 'libdir')
 +  llvm_libdir = get_option('clang-libdir')
  
@@ -32,16 +32,6 @@ diff --git a/src/gallium/targets/opencl/meson.build b/src/gallium/targets/opencl
 index db3586bd7fb..4d914206d21 100644
 --- a/src/gallium/targets/opencl/meson.build
 +++ b/src/gallium/targets/opencl/meson.build
-@@ -39,7 +39,8 @@ if dep_llvm.version().version_compare('>=10.0.0')
-   polly_isl_dep = cpp.find_library('PollyISL', dirs : llvm_libdir, required : false)
- endif
- 
--dep_clang = cpp.find_library('clang-cpp', dirs : llvm_libdir, required : false)
-+clang_libdir = get_option('clang-libdir')
-+dep_clang = cpp.find_library('clang-cpp', dirs : clang_libdir, required : false)
- 
- # meson will return clang-cpp from system dirs if it's not found in llvm_libdir
- linker_rpath_arg = '-Wl,--rpath=@0@'.format(llvm_libdir)
 @@ -123,7 +124,7 @@ if with_opencl_icd
      configuration : _config,
      input : 'mesa.icd.in',
