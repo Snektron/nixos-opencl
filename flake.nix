@@ -341,6 +341,7 @@
         unpackPhase = "dpkg -x $src ./";
 
         installPhase = ''
+          ls -R opt/intel/oneapi/redist
           mkdir -p $out/lib
           for f in "libimf.so" "libintlc.so" "libintlc.so.5" "libirng.so" "libsvml.so"; do
             mv opt/intel/oneapi/redist/lib/$f $out/lib/
@@ -377,6 +378,7 @@
         installPhase = ''
           mkdir -p $out/lib
           mv opt/intel/oneapi/lib/intel64/* $out/lib/
+          mv opt/intel/oneapi/lib/clbltfnshared.rtl $out/lib/
 
           mkdir -p $out/etc/OpenCL/vendors
           echo $out/lib/libintelocl.so > $out/etc/OpenCL/vendors/intel-cpu.icd
