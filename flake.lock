@@ -3,11 +3,11 @@
     "clvk-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1728582339,
-        "narHash": "sha256-rg91X4B5TirhmxiKCYzlXPeXkfd7QR3CurlCS146NV8=",
+        "lastModified": 1731753151,
+        "narHash": "sha256-Tr2mCupKOhj6gI2qYYcnbM4Uqnlap6eGTrhDhXv0xWs=",
         "ref": "refs/heads/main",
-        "rev": "1eabcc4c7952afb6b0a9a9f57f74fdeff7cb9ce9",
-        "revCount": 690,
+        "rev": "4aa6f004d9cd3e6c89195be07fa57f9ed0bca6a8",
+        "revCount": 702,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/kpet/clvk.git"
@@ -21,11 +21,11 @@
     "mesa-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1728685053,
-        "narHash": "sha256-EzdGVcONG5X5j3mH04DBGInIPpTgNOgkfDGvNlPLgd4=",
+        "lastModified": 1731726871,
+        "narHash": "sha256-wJJVexAt0k99zJCi//dYzmVEatSreC3ddLNHY7N9Crk=",
         "ref": "refs/heads/main",
-        "rev": "c8c354d9c3a2e79230723f1c8b0571b20d034fee",
-        "revCount": 196303,
+        "rev": "3d24f0ece139e040d515c3d15af11af4dbe44bd2",
+        "revCount": 197727,
         "type": "git",
         "url": "https://gitlab.freedesktop.org/mesa/mesa.git"
       },
@@ -36,15 +36,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1728734161,
-        "narHash": "sha256-ueFR2a0KdfDbSyKe0edq6LCdqot2elyNHdDlT+uN2dA=",
+        "lastModified": 1731603435,
+        "narHash": "sha256-CqCX4JG7UiHvkrBTpYC3wcEurvbtTADLbo3Ns2CEoL8=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "c55e1efd2e707f4d0c2892e53ff76565ee09c943",
+        "rev": "8b27c1239e5c421a2bbc2c65d52e4a6fbf2ff296",
         "type": "github"
       },
       "original": {
         "owner": "nixos",
+        "ref": "24.11-beta",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -52,11 +53,11 @@
     "pocl-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1728659682,
-        "narHash": "sha256-AYkTc8rDLrT95LAnnbZXITk6cJY168rLnCS13e4UZdI=",
+        "lastModified": 1731686349,
+        "narHash": "sha256-yM/N3rrCQeqjl6DA8wIt05bw9M5CO+IQ3kLj/Wdy2nc=",
         "owner": "pocl",
         "repo": "pocl",
-        "rev": "4e25a962124702dc5435d2f465062ad5dfc39910",
+        "rev": "21c27b4bd7d55bb86e57424326fa21b62171e5f0",
         "type": "github"
       },
       "original": {
@@ -77,11 +78,11 @@
     "shady-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1728647323,
-        "narHash": "sha256-eV8Qk071+4QNPVe+NEW9L9unCNYBdhDSUlGlgjI5UI4=",
-        "ref": "refs/heads/master",
-        "rev": "4a716277d3e5c471370c30f14b5f6683b422c558",
-        "revCount": 2193,
+        "lastModified": 1730448870,
+        "narHash": "sha256-1pZt/CvGm+Y7LeEntovzeegnlbblRXnl2tuCVWXzlCE=",
+        "ref": "refs/heads/main",
+        "rev": "a4c0ed9d93dfe72a10e0cf221fcc7712d00c80ac",
+        "revCount": 2243,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/shady-gang/shady.git"

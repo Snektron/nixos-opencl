@@ -2,7 +2,7 @@
   description = "OpenCL packages for NixOS";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs";
+    nixpkgs.url = "github:nixos/nixpkgs/24.11-beta";
 
     mesa-src = {
       url = "git+https://gitlab.freedesktop.org/mesa/mesa.git";
@@ -35,13 +35,13 @@
       in f system pkgs);
   in rec {
     packages = forAllSystems (system: pkgs: {
-      llvmPackages = pkgs.llvmPackages_18;
+      llvmPackages = pkgs.llvmPackages_19;
 
       spirv-llvm-translator = (pkgs.spirv-llvm-translator.override {
         inherit (packages.${system}.llvmPackages) llvm;
       });
 
-      mesa-debug-slim = (pkgs.mesa.override {
+      mesa = (pkgs.mesa.override {
         galliumDrivers = [ "iris" "swrast" "nouveau" "radeonsi" "zink" ] ++ lib.optionals (pkgs.stdenv.hostPlatform.isAarch64) [ "v3d" ];
         vulkanDrivers = [ ];
         vulkanLayers = [ ];
@@ -53,8 +53,8 @@
         # Set some extra flags to create an extra slim build
         mesonFlags =
           builtins.filter
-            # These flags seem no longer requied
-            (flag: !(lib.strings.hasInfix "omx-libs-path" flag || lib.strings.hasInfix "dri-search-path" flag))
+            # These flags are no longer valid.
+            (flag: !(lib.strings.hasInfix "omx-libs-path" flag || lib.strings.hasInfix "dri-search-path" flag || lib.strings.hasInfix "opencl-spirv" flag))
             (old.mesonFlags or [ ]) ++ [
               "-Dgallium-vdpau=disabled"
               "-Dgallium-va=disabled"
@@ -159,6 +159,7 @@
         llvmPackages,
         libxml2,
         json_c,
+        python3
       }: stdenv.mkDerivation {
         pname = "shady";
         version = "git";
@@ -168,6 +169,7 @@
         nativeBuildInputs = [
           cmake
           ninja
+          python3
         ];
 
         buildInputs = [
@@ -185,6 +187,10 @@
         ];
 
         patches = [ ./patches/shady.patch ];
+
+        postPatch = ''
+          patchShebangs SPIRV-Headers/tools/buildHeaders/bin/generate_language_headers.py
+        '';
 
         postInstall = ''
           patchelf --allowed-rpath-prefixes /nix --shrink-rpath $out/bin/vcc
@@ -251,8 +257,23 @@
 
         patches = [
           (fetchpatch {
-            url = "https://github.com/google/clspv/pull/1328/commits/a34649351ffb7d047f443b3899955f8529f30d55.patch";
-            hash = "sha256-DIYGI17Vqe9UzN55eWhRF/3BBBhOVxy7fNY6IWVTdO0=";
+            url = "https://github.com/google/clspv/commit/022d17206ec3aca899f72593b8f3d2bf5b5192ec.patch";
+            hash = "sha256-RJX4/Eec7UUFED7zudJTAORPjXSUdTKi/YXhIdk/kxU=";
+            stripLen = 1;
+            extraPrefix = "external/clspv/";
+            revert = true;
+          })
+          (fetchpatch {
+            url = "https://github.com/google/clspv/commit/419bc4ba6d1b6ff01c8f2f8ac2306307d9022cc9.patch";
+            hash = "sha256-VzP6/oU3POtxDZ3kH/0IoUTmUzB+Lo3KmQD2ajsq0ko=";
+            stripLen = 1;
+            extraPrefix = "external/clspv/";
+            excludes = [ "external/clspv/deps.json" ];
+            revert = true;
+          })
+          (fetchpatch {
+            url = "https://github.com/google/clspv/commit/48acbf93dccdfca586210713d9d55cde40e40b54.patch";
+            hash = "sha256-d8JKmKxLQa6Vxzw0cLXG/ldpxCZ4Iml5w2Tn4aSeCmQ=";
             stripLen = 1;
             extraPrefix = "external/clspv/";
             excludes = [ "external/clspv/deps.json" ];
@@ -429,7 +450,7 @@
         };
       } // lib.attrsets.optionalAttrs (pkgs.stdenv.hostPlatform.isx86_64) {
         rocm = {
-          vendors = pkgs.rocm-opencl-icd;
+          vendors = pkgs.rocmPackages.clr;
         };
 
         intel-cpu = {
