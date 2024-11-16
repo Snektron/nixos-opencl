@@ -42,9 +42,6 @@
       });
 
       mesa = (pkgs.mesa.override {
-        galliumDrivers = [ "iris" "swrast" "nouveau" "radeonsi" "zink" ] ++ lib.optionals (pkgs.stdenv.hostPlatform.isAarch64) [ "v3d" ];
-        vulkanDrivers = [ ];
-        vulkanLayers = [ ];
         withValgrind = false;
         inherit (packages.${system}) llvmPackages spirv-llvm-translator;
       }).overrideAttrs (old: {
@@ -56,13 +53,6 @@
             # These flags are no longer valid.
             (flag: !(lib.strings.hasInfix "omx-libs-path" flag || lib.strings.hasInfix "dri-search-path" flag || lib.strings.hasInfix "opencl-spirv" flag))
             (old.mesonFlags or [ ]) ++ [
-              "-Dgallium-vdpau=disabled"
-              "-Dgallium-va=disabled"
-              "-Dgallium-xa=disabled"
-              "-Dandroid-libbacktrace=disabled"
-              "-Dvalgrind=disabled"
-              "-Dlibunwind=disabled"
-              "-Dlmsensors=disabled"
               "-Db_ndebug=false"
               "--buildtype=debug"
             ];
@@ -81,11 +71,7 @@
               (line: !(lib.strings.hasInfix "$out/lib/libgallium*.so" line))
               (lib.strings.splitString "\n" old.postFixup));
 
-        # We don't care about microsoft here.
-        outputs =
-          builtins.filter
-            (x: x != "spirv2dxil")
-            old.outputs;
+        dontStrip = true;
       });
 
       pocl = pkgs.callPackage ({
@@ -434,7 +420,7 @@
 
       shells = {
         mesa = {
-          vendors = packages.${system}.mesa-debug-slim.opencl;
+          vendors = packages.${system}.mesa.opencl;
           extraShellHook = ''
             # Don't enable radeonsi:0 by default because if something goes wrong it may crash the host
             export RUSTICL_ENABLE=swrast:0
@@ -483,6 +469,23 @@
             (lib.attrsets.mapAttrsToList
               (name: options: options.extraShellHook or "")
               shells);
+      };
+
+      # This environment can be used to get our mesa build's Vulkan drivers too
+      mesa-vulkan = let
+        mesa_icd_dir = "${packages.${system}.mesa.drivers}/share/vulkan/icd.d";
+        icds = pkgs.lib.strings.concatStringsSep ":" [
+          "${mesa_icd_dir}/radeon_icd.x86_64.json"
+          "${mesa_icd_dir}/lvp_icd.x86_64.json"
+        ];
+      in pkgs.mkShell {
+        packages = [
+          self.packages.${system}.mesa.drivers
+        ];
+
+        shellHook = ''
+          export VK_DRIVER_FILES=${icds}
+        '';
       };
     });
   };
