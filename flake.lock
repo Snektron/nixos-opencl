@@ -3,11 +3,11 @@
     "clvk-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1731753151,
-        "narHash": "sha256-Tr2mCupKOhj6gI2qYYcnbM4Uqnlap6eGTrhDhXv0xWs=",
+        "lastModified": 1732647866,
+        "narHash": "sha256-teRLmTyWGrdxRzL5C9M9E7e0RjHA9IXFTlEPN05/rCU=",
         "ref": "refs/heads/main",
-        "rev": "4aa6f004d9cd3e6c89195be07fa57f9ed0bca6a8",
-        "revCount": 702,
+        "rev": "adba303720bf1c502d1b0145651102e437770204",
+        "revCount": 707,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/kpet/clvk.git"
@@ -21,11 +21,11 @@
     "mesa-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1731726871,
-        "narHash": "sha256-wJJVexAt0k99zJCi//dYzmVEatSreC3ddLNHY7N9Crk=",
+        "lastModified": 1732656089,
+        "narHash": "sha256-mb8J4xbBSNbU6PO19ZgDm1SNE/IL+jxjZ1PGXydlL/g=",
         "ref": "refs/heads/main",
-        "rev": "3d24f0ece139e040d515c3d15af11af4dbe44bd2",
-        "revCount": 197727,
+        "rev": "92235280595e5c4a74fff35a8ec882adb7382be5",
+        "revCount": 198281,
         "type": "git",
         "url": "https://gitlab.freedesktop.org/mesa/mesa.git"
       },
@@ -53,11 +53,11 @@
     "pocl-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1731686349,
-        "narHash": "sha256-yM/N3rrCQeqjl6DA8wIt05bw9M5CO+IQ3kLj/Wdy2nc=",
+        "lastModified": 1732632355,
+        "narHash": "sha256-LbWx8G/Qqp7BHQN7TsBQGELyqviddP5H6ieMOacQTQM=",
         "owner": "pocl",
         "repo": "pocl",
-        "rev": "21c27b4bd7d55bb86e57424326fa21b62171e5f0",
+        "rev": "c2f28140be0d1885c3bf3b5fe4c5b24e58a5c565",
         "type": "github"
       },
       "original": {
