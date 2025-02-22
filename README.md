@@ -3,7 +3,7 @@
 This flake contains a dev shell with a bunch of OpenCL drivers and tooling. It contains some stuff that is not found in nixpkgs and attempts to provide more recent versions of the things that are. It works on aarch64-linux and x86_64 based platform. A number of development shells are available from this flake:
 
 - `mesa`: A debug build of the master branch of [mesa](https://gitlab.freedesktop.org/mesa/mesa/). Note that the RustiCL backend is set to `swrast:0` by default, set the `RUSTICL_ENABLE` environment variable to override that. Zink requires a Vulkan driver to be available on the system, this can either be provided by the system or the `mesa-vulkan` shell.
-- `intel-cpu` (x86_64 only): The [Intel OpenCL CPU Runtime](https://www.intel.com/content/www/us/en/developer/articles/tool/opencl-drivers.html), version WW2023-46. This driver is based off LLVM 17 and LLVM-SPIRV-Translator 17, so it misses a bunch of goodies.
+- `intel-cpu` (x86_64 only): The Intel OpenCL CPU runtime from DPC++, version 2025.0.4-1519.
 - `pocl`: A build of the master branch of [POCL](https://github.com/pocl/pocl).
 - `clvk`: [clvk](https://github.com/kpet/clvk)
 - `rocm`: The regular NixOS ROCm OpenCL ICD.

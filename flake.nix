@@ -2,7 +2,7 @@
   description = "OpenCL packages for NixOS";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/24.11-beta";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-24.11";
 
     mesa-src = {
       url = "git+https://gitlab.freedesktop.org/mesa/mesa.git";
@@ -58,7 +58,7 @@
             ];
 
         # Dirty patch to make one of the nixos-upstream patches working.
-        patches = [ ./patches/mesa-opencl.patch ./patches/mesa-disk-cache-key.patch ./patches/mesa-rusticl-bindgen-cpp17.patch ];
+        patches = [ ./patches/mesa-opencl.patch ];
 
         # This `patchelf --add-rpath ${vulkan-loader}/lib $out/lib/libgallium*.so`
         # doesn't work with the current version of mesa, so remove it. Likely this
@@ -265,6 +265,30 @@
             excludes = [ "external/clspv/deps.json" ];
             revert = true;
           })
+          (fetchpatch {
+            url = "https://github.com/google/clspv/commit/ae643967b8a7b0402420b95cf101c179fe059f45.patch";
+            hash = "sha256-Czu06caNJjFBVSg6uoWFPJQul8Hhqi/hou/AcymVhI4=";
+            stripLen = 1;
+            extraPrefix = "external/clspv/";
+            excludes = [ "external/clspv/deps.json" ];
+            revert = true;
+          })
+          (fetchpatch {
+            url = "https://github.com/google/clspv/commit/b8c19faca7317d64922396aa2ee44029dbf38b7c.patch";
+            hash = "sha256-S2SmeM84XU9Wd2XA3DFmBXK2AEz4tClOgaEGHPoBBaY=";
+            stripLen = 1;
+            extraPrefix = "external/clspv/";
+            excludes = [ "external/clspv/deps.json" ];
+            revert = true;
+          })
+          (fetchpatch {
+            url = "https://github.com/google/clspv/commit/7bfeccd7be6ea317c07de9f8d7ceb86cb2579d20.patch";
+            hash = "sha256-qys2hQyciQmkvaD1LF4qoGxbUD0qiO0DTY7ryY+HalU=";
+            stripLen = 1;
+            extraPrefix = "external/clspv/";
+            excludes = [ "external/clspv/deps.json" ];
+            revert = true;
+          })
         ];
 
         postPatch = ''
@@ -332,12 +356,12 @@
         autoPatchelfHook,
         dpkg
       }: stdenv.mkDerivation rec {
-        pname = "intel-oneapi-runtime-compilers-2024";
-        version = "2024.2.1-1079";
+        pname = "intel-oneapi-runtime-compilers";
+        version = "2025.0.4-1519";
 
         src = fetchurl {
           url = "https://apt.repos.intel.com/oneapi/pool/main/${pname}-${version}_amd64.deb";
-          hash = "sha256-PTux/6v1tvFNl0jNqmSqMTb0vF8UhTbHfa+FmsqB81Y=";
+          hash = "sha256-L2Tb74/ybDgW60eRRFVZIvGmwKfs6/zaxawzEd5J+gA=";
         };
 
         nativeBuildInputs = [ autoPatchelfHook dpkg ];
@@ -348,12 +372,40 @@
         unpackPhase = "dpkg -x $src ./";
 
         installPhase = ''
-          ls -R opt/intel/oneapi/redist
           mkdir -p $out/lib
           for f in "libimf.so" "libintlc.so" "libintlc.so.5" "libirng.so" "libsvml.so"; do
             mv opt/intel/oneapi/redist/lib/$f $out/lib/
           done
           ls -alh $out/lib
+        '';
+      }) {};
+
+      intel-oneapi-runtime-openmp-opencl-shared = pkgs.callPackage ({
+        stdenv,
+        fetchurl,
+        autoPatchelfHook,
+        dpkg,
+        gcc-unwrapped
+      }: stdenv.mkDerivation rec {
+        pname = "intel-oneapi-runtime-openmp-opencl-shared";
+        version = "2025.0.4-1519";
+
+        src = fetchurl {
+          url = "https://apt.repos.intel.com/oneapi/pool/main/${pname}-${version}_amd64.deb";
+          hash = "sha256-KQAHBUggsKem6EsVWguJo27GpqZt2XHJyfBRcFf2gz8=";
+        };
+
+        nativeBuildInputs = [ autoPatchelfHook dpkg ];
+        buildInputs = [ gcc-unwrapped.lib stdenv.cc.cc.lib ];
+
+        dontConfigure = true;
+        dontBuild = true;
+
+        unpackPhase = "dpkg -x $src ./";
+
+        installPhase = ''
+          mkdir -p $out/lib
+          mv opt/intel/oneapi/redist/lib/* $out/lib/
         '';
       }) {};
 
@@ -364,18 +416,19 @@
         zlib,
         tbb_2021_11,
         dpkg,
-        intel-oneapi-runtime-compilers
+        intel-oneapi-runtime-compilers,
+        intel-oneapi-runtime-openmp-opencl-shared
       }: stdenv.mkDerivation rec {
         pname = "intel-oneapi-runtime-dpcpp-sycl-opencl-cpu";
-        version = "2023.2.4-49553";
+        version = "2025.0.4-1519";
 
         src = fetchurl {
           url = "https://apt.repos.intel.com/oneapi/pool/main/${pname}-${version}_amd64.deb";
-          hash = "sha256-z8bilFjtu/dYIE4ItiZnQX6Ot99UpnaIBHm2Nmlq50I=";
+          hash = "sha256-DT+ZD22NHBmk27Mkds1nFWvh/pArjdQmt7+T150AXVA=";
         };
 
         nativeBuildInputs = [ autoPatchelfHook dpkg ];
-        buildInputs = [ zlib tbb_2021_11 intel-oneapi-runtime-compilers ];
+        buildInputs = [ zlib tbb_2021_11 intel-oneapi-runtime-compilers intel-oneapi-runtime-openmp-opencl-shared ];
 
         dontConfigure = true;
         dontBuild = true;
@@ -384,14 +437,13 @@
 
         installPhase = ''
           mkdir -p $out/lib
-          mv opt/intel/oneapi/lib/intel64/* $out/lib/
-          mv opt/intel/oneapi/lib/clbltfnshared.rtl $out/lib/
+          mv opt/intel/oneapi/redist/lib/* $out/lib/
 
           mkdir -p $out/etc/OpenCL/vendors
           echo $out/lib/libintelocl.so > $out/etc/OpenCL/vendors/intel-cpu.icd
         '';
       }) {
-        inherit (packages.${system}) intel-oneapi-runtime-compilers;
+        inherit (packages.${system}) intel-oneapi-runtime-compilers intel-oneapi-runtime-openmp-opencl-shared;
       };
     });
 

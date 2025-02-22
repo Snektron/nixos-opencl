@@ -13,8 +13,8 @@ index c150bff74ff..37fa7f0531b 100644
  
 diff --git a/meson_options.txt b/meson_options.txt
 index 6f307018815..ab84eb1006c 100644
---- a/meson_options.txt
-+++ b/meson_options.txt
+--- a/meson.options
++++ b/meson.options
 @@ -18,6 +18,12 @@
  # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  # SOFTWARE.
