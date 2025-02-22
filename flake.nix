@@ -37,13 +37,36 @@
     packages = forAllSystems (system: pkgs: {
       llvmPackages = pkgs.llvmPackages_19;
 
-      spirv-llvm-translator = (pkgs.spirv-llvm-translator.override {
-        inherit (packages.${system}.llvmPackages) llvm;
+      spirv-headers = pkgs.spirv-headers.overrideAttrs (old: rec {
+        version = "1.4.304.1";
+        src = pkgs.fetchFromGitHub {
+          owner = "KhronosGroup";
+          repo = "SPIRV-Headers";
+          rev = "vulkan-sdk-${version}";
+          hash = "sha256-MCQ+i9ymjnxRZP/Agk7rOGdHcB4p67jT4J4athWUlcI=";
+        };
       });
+
+      spirv-tools = (pkgs.spirv-tools.override {
+        inherit (packages.${system}) spirv-headers;
+      }).overrideAttrs (old: rec {
+        version = "1.4.304.1";
+        src = pkgs.fetchFromGitHub {
+          owner = "KhronosGroup";
+          repo = "SPIRV-Tools";
+          rev = "vulkan-sdk-${version}";
+          hash = "sha256-alJ4X7qbTzsRTqRFdpjdsj0wERVb17czui2muEaKNyI=";
+        };
+      });
+
+      spirv-llvm-translator = pkgs.spirv-llvm-translator.override {
+        inherit (packages.${system}.llvmPackages) llvm;
+        inherit (packages.${system}) spirv-headers spirv-tools;
+      };
 
       mesa = (pkgs.mesa.override {
         withValgrind = false;
-        inherit (packages.${system}) llvmPackages spirv-llvm-translator;
+        inherit (packages.${system}) llvmPackages spirv-tools spirv-llvm-translator;
       }).overrideAttrs (old: {
         version = "git";
         src = mesa-src;
@@ -347,7 +370,7 @@
           echo $out/libOpenCL.so > $out/etc/OpenCL/vendors/clvk.icd
         '';
       }) {
-        inherit (packages.${system}) llvmPackages spirv-llvm-translator;
+        inherit (packages.${system}) llvmPackages spirv-llvm-translator spirv-tools;
       };
     } // lib.attrsets.optionalAttrs (pkgs.stdenv.hostPlatform.isx86_64) {
       intel-oneapi-runtime-compilers = pkgs.callPackage ({
@@ -453,15 +476,15 @@
         pkgs.khronos-ocl-icd-loader
       ];
 
-      mkDevShell = { name, vendors, extraShellHook ? "", packages ? [] }: pkgs.mkShell {
+      mkDevShell = { name, vendors, extraShellHook ? "", extraPackages ? [] }: pkgs.mkShell {
         name = "nix-opencl-${name}";
 
         packages = [
           pkgs.khronos-ocl-icd-loader
           pkgs.clinfo
           pkgs.opencl-headers
-          pkgs.spirv-tools
-        ] ++ packages;
+          packages.${system}.spirv-tools
+        ] ++ extraPackages;
 
         shellHook = ''
           export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ld_library_path}"
@@ -509,7 +532,7 @@
           paths = lib.attrsets.mapAttrsToList (name: options: options.vendors) shells;
         };
 
-        packages = (lib.attrsets.mapAttrsToList (name: options: options.packages or []) shells) ++ [
+        extraPackages = (lib.attrsets.mapAttrsToList (name: options: options.packages or []) shells) ++ [
           packages.${system}.spirv-llvm-translator
           packages.${system}.shady
           packages.${system}.spirv2clc
