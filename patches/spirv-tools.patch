@@ -1,0 +1,58 @@
+diff --git a/include/spirv-tools/libspirv.h b/include/spirv-tools/libspirv.h
+index 100e61e1..2f94e871 100644
+--- a/include/spirv-tools/libspirv.h
++++ b/include/spirv-tools/libspirv.h
+@@ -347,6 +347,7 @@ typedef enum spv_ext_inst_type_t {
+   SPV_EXT_INST_TYPE_NONSEMANTIC_CLSPVREFLECTION,
+   SPV_EXT_INST_TYPE_NONSEMANTIC_SHADER_DEBUGINFO_100,
+   SPV_EXT_INST_TYPE_NONSEMANTIC_VKSPREFLECTION,
++  SPV_EXT_INST_TYPE_ZIG,
+ 
+   // Multiple distinct extended instruction set types could return this
+   // value, if they are prefixed with NonSemantic. and are otherwise
+diff --git a/source/CMakeLists.txt b/source/CMakeLists.txt
+index b20357bb..120bcf45 100644
+--- a/source/CMakeLists.txt
++++ b/source/CMakeLists.txt
+@@ -148,6 +148,7 @@ spvtools_core_tables("unified1")
+ spvtools_enum_string_mapping("unified1")
+ spvtools_opencl_tables("unified1")
+ spvtools_glsl_tables("unified1")
++spvtools_vendor_tables("zig" "zig" "")
+ spvtools_vendor_tables("spv-amd-shader-explicit-vertex-parameter" "spv-amd-sevp" "")
+ spvtools_vendor_tables("spv-amd-shader-trinary-minmax" "spv-amd-stm" "")
+ spvtools_vendor_tables("spv-amd-gcn-shader" "spv-amd-gs" "")
+diff --git a/source/ext_inst.cpp b/source/ext_inst.cpp
+index f2ff63fc..6e46b962 100644
+--- a/source/ext_inst.cpp
++++ b/source/ext_inst.cpp
+@@ -40,6 +40,8 @@
+ #include "spv-amd-shader-explicit-vertex-parameter.insts.inc"
+ #include "spv-amd-shader-trinary-minmax.insts.inc"
+ 
++#include "zig.insts.inc"
++
+ static const spv_ext_inst_group_t kGroups_1_0[] = {
+     {SPV_EXT_INST_TYPE_GLSL_STD_450, ARRAY_SIZE(glsl_entries), glsl_entries},
+     {SPV_EXT_INST_TYPE_OPENCL_STD, ARRAY_SIZE(opencl_entries), opencl_entries},
+@@ -66,6 +68,9 @@ static const spv_ext_inst_group_t kGroups_1_0[] = {
+     {SPV_EXT_INST_TYPE_NONSEMANTIC_VKSPREFLECTION,
+      ARRAY_SIZE(nonsemantic_vkspreflection_entries),
+      nonsemantic_vkspreflection_entries},
++    {SPV_EXT_INST_TYPE_ZIG,
++     ARRAY_SIZE(zig_entries),
++     zig_entries},
+ };
+ 
+ static const spv_ext_inst_table_t kTable_1_0 = {ARRAY_SIZE(kGroups_1_0),
+@@ -146,6 +151,10 @@ spv_ext_inst_type_t spvExtInstImportTypeGet(const char* name) {
+   if (!strncmp("NonSemantic.VkspReflection.", name, 27)) {
+     return SPV_EXT_INST_TYPE_NONSEMANTIC_VKSPREFLECTION;
+   }
++  if (!strcmp("zig", name)) {
++    return SPV_EXT_INST_TYPE_ZIG;
++  }
++
+   // ensure to add any known non-semantic extended instruction sets
+   // above this point, and update spvExtInstIsNonSemantic()
+   if (!strncmp("NonSemantic.", name, 12)) {

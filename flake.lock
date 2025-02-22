@@ -72,7 +72,8 @@
         "mesa-src": "mesa-src",
         "nixpkgs": "nixpkgs",
         "pocl-src": "pocl-src",
-        "shady-src": "shady-src"
+        "shady-src": "shady-src",
+        "zig-src": "zig-src"
       }
     },
     "shady-src": {
@@ -91,6 +92,22 @@
         "submodules": true,
         "type": "git",
         "url": "https://github.com/shady-gang/shady.git"
+      }
+    },
+    "zig-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1740208424,
+        "narHash": "sha256-ePezPJIl9ilOCd0LziHi1JgkhNRuYqMsN5fw80tiBFY=",
+        "ref": "refs/heads/master",
+        "rev": "31f353cd925a565dc32fa013c3ff767a06963adc",
+        "revCount": 32773,
+        "type": "git",
+        "url": "https://github.com/ziglang/zig"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://github.com/ziglang/zig"
       }
     }
   },

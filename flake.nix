@@ -23,9 +23,14 @@
       url = "git+https://github.com/kpet/clvk.git?submodules=1";
       flake = false;
     };
+
+    zig-src = {
+      url = "git+https://github.com/ziglang/zig";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, mesa-src, pocl-src, shady-src, clvk-src }:
+  outputs = { self, nixpkgs, mesa-src, pocl-src, shady-src, clvk-src, zig-src }:
   let
     systems = [ "x86_64-linux" "aarch64-linux" ];
     lib = nixpkgs.lib;
@@ -37,7 +42,14 @@
     packages = forAllSystems (system: pkgs: {
       llvmPackages = pkgs.llvmPackages_19;
 
-      spirv-headers = pkgs.spirv-headers.overrideAttrs (old: rec {
+      # The SPIR-V headers source is used during building of spirv-tools,
+      # so to add the Zig experimental grammar we have to patch the source
+      # and not just the installation of spirv-headers...
+      spirv-headers-src = pkgs.callPackage ({
+        stdenv,
+        fetchFromGitHub
+      }: stdenv.mkDerivation rec {
+        pname = "spirv-headers-src";
         version = "1.4.304.1";
         src = pkgs.fetchFromGitHub {
           owner = "KhronosGroup";
@@ -45,6 +57,23 @@
           rev = "vulkan-sdk-${version}";
           hash = "sha256-MCQ+i9ymjnxRZP/Agk7rOGdHcB4p67jT4J4athWUlcI=";
         };
+
+        dontConfigure = true;
+        dontBuild = true;
+
+        postPatch = ''
+          # Add the Zig experimental extinst set
+          cp ${zig-src}/src/codegen/spirv/extinst.zig.grammar.json include/spirv/unified1/
+        '';
+
+        installPhase = ''
+          cp -r . $out
+        '';
+      }) {};
+
+      spirv-headers = pkgs.spirv-headers.overrideAttrs (old: rec {
+        version = "1.4.304.1";
+        src = packages.${system}.spirv-headers-src;
       });
 
       spirv-tools = (pkgs.spirv-tools.override {
@@ -57,6 +86,8 @@
           rev = "vulkan-sdk-${version}";
           hash = "sha256-alJ4X7qbTzsRTqRFdpjdsj0wERVb17czui2muEaKNyI=";
         };
+
+        patches = [ ./patches/spirv-tools.patch ];
       });
 
       spirv-llvm-translator = pkgs.spirv-llvm-translator.override {
