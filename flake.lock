@@ -21,11 +21,11 @@
     "mesa-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1740218329,
-        "narHash": "sha256-C+b0LO6XlG64LWOwtkcGaY0ZKJavvd8r+gD0NvmPLKk=",
+        "lastModified": 1740292183,
+        "narHash": "sha256-53GnYe/l490WpyFcZJDJ8YDVlSlDZqNF7eAJ7oo+ng8=",
         "ref": "refs/heads/main",
-        "rev": "64e68b1ac05357ca1646a254af9fac28a5b95c3b",
-        "revCount": 202178,
+        "rev": "ed4e2fac86ef18440c939c9439298aee838f3a8e",
+        "revCount": 202196,
         "type": "git",
         "url": "https://gitlab.freedesktop.org/mesa/mesa.git"
       },
@@ -36,11 +36,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1739923778,
-        "narHash": "sha256-BqUY8tz0AQ4to2Z4+uaKczh81zsGZSYxjgvtw+fvIfM=",
+        "lastModified": 1740162160,
+        "narHash": "sha256-SSYxFhqCOb3aiPb6MmN68yEzBIltfom8IgRz7phHscM=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "36864ed72f234b9540da4cf7a0c49e351d30d3f1",
+        "rev": "11415c7ae8539d6292f2928317ee7a8410b28bb9",
         "type": "github"
       },
       "original": {
@@ -97,11 +97,11 @@
     "zig-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1740208424,
-        "narHash": "sha256-ePezPJIl9ilOCd0LziHi1JgkhNRuYqMsN5fw80tiBFY=",
+        "lastModified": 1740309935,
+        "narHash": "sha256-tDhmNZ2KSmaI3tutMm7pGgSN4qWBKwDq+mI7aalKq9s=",
         "ref": "refs/heads/master",
-        "rev": "31f353cd925a565dc32fa013c3ff767a06963adc",
-        "revCount": 32773,
+        "rev": "c44f4501e79744a2744f7e0c72ff71cdbcb62440",
+        "revCount": 32831,
         "type": "git",
         "url": "https://github.com/ziglang/zig"
       },

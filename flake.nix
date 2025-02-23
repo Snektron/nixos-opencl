@@ -54,8 +54,8 @@
         src = pkgs.fetchFromGitHub {
           owner = "KhronosGroup";
           repo = "SPIRV-Headers";
-          rev = "vulkan-sdk-${version}";
-          hash = "sha256-MCQ+i9ymjnxRZP/Agk7rOGdHcB4p67jT4J4athWUlcI=";
+          rev = "54a521dd130ae1b2f38fef79b09515702d135bdd";
+          hash = "sha256-PScDq8HhQPFUs78N75QyL9oEykmjZmAhdxCAqQ0LJds=";
         };
 
         dontConfigure = true;
@@ -78,13 +78,15 @@
 
       spirv-tools = (pkgs.spirv-tools.override {
         inherit (packages.${system}) spirv-headers;
+        # Compilation with stdenv causes ICE for some reason
+        stdenv = pkgs.clang19Stdenv;
       }).overrideAttrs (old: rec {
         version = "1.4.304.1";
         src = pkgs.fetchFromGitHub {
-          owner = "KhronosGroup";
+          owner = "Snektron";
           repo = "SPIRV-Tools";
-          rev = "vulkan-sdk-${version}";
-          hash = "sha256-alJ4X7qbTzsRTqRFdpjdsj0wERVb17czui2muEaKNyI=";
+          rev = "e2fa6b83ac26c0545a7405e08b4ded7a34eeeed0";
+          hash = "sha256-0/aSkPQp+jWXcRJmI4zyfufhyhX5Egiza0pCbtoeyPQ=";
         };
 
         patches = [ ./patches/spirv-tools.patch ];
@@ -98,6 +100,8 @@
       mesa = (pkgs.mesa.override {
         withValgrind = false;
         inherit (packages.${system}) llvmPackages spirv-tools spirv-llvm-translator;
+        # Compilation with stdenv segfaults for some reason
+        stdenv = pkgs.gcc14Stdenv;
       }).overrideAttrs (old: {
         version = "git";
         src = mesa-src;
@@ -139,7 +143,10 @@
         libxml2,
         runCommand,
         pkg-config,
-        spirv-llvm-translator
+        spirv-llvm-translator,
+        opencl-headers,
+        hwloc,
+        spirv-tools
       }: let
         # POCL needs libgcc.a and libgcc_s.so. Note that libgcc_s.so is a linker script and not
         # a symlink, hence we also need libgcc_s.so.1.
@@ -168,6 +175,9 @@
           spirv-llvm-translator
           libxml2
           pkg-config
+          opencl-headers
+          spirv-tools
+          hwloc
         ];
 
         src = pocl-src;
@@ -189,7 +199,8 @@
           "-DEXTRA_HOST_LD_FLAGS=-L${libgcc}/lib"
         ];
       }) {
-        inherit (packages.${system}) llvmPackages spirv-llvm-translator;
+        inherit (packages.${system}) llvmPackages spirv-llvm-translator spirv-tools;
+        stdenv = pkgs.clang19Stdenv;
       };
 
       shady = pkgs.callPackage ({
@@ -402,6 +413,7 @@
         '';
       }) {
         inherit (packages.${system}) llvmPackages spirv-llvm-translator spirv-tools;
+        stdenv = pkgs.clang19Stdenv;
       };
     } // lib.attrsets.optionalAttrs (pkgs.stdenv.hostPlatform.isx86_64) {
       intel-oneapi-runtime-compilers = pkgs.callPackage ({
