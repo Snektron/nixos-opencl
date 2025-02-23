@@ -434,6 +434,37 @@
         '';
       }) {};
 
+      # NixOS' tbb doesn't work properly.
+      intel-oneapi-runtime-tbb = pkgs.callPackage ({
+        stdenv,
+        fetchurl,
+        autoPatchelfHook,
+        dpkg,
+        hwloc
+      }: stdenv.mkDerivation rec {
+        pname = "intel-oneapi-runtime-tbb";
+        version = "2022.0.0-402";
+
+        src = fetchurl {
+          url = "https://apt.repos.intel.com/oneapi/pool/main/${pname}-${version}_amd64.deb";
+          hash = "sha256-tmdMCXKiC+2P3Pjfb+jaDwyYeknVxUSRvQeasmZnuxA=";
+        };
+
+        nativeBuildInputs = [ autoPatchelfHook dpkg ];
+        buildInputs = [ stdenv.cc.cc.lib hwloc.lib ];
+
+        dontConfigure = true;
+        dontBuild = true;
+
+        unpackPhase = "dpkg -x $src ./";
+
+        installPhase = ''
+          mkdir -p $out/lib
+          ls
+          mv opt/intel/oneapi/redist/lib/libtbb.so* $out/lib/
+        '';
+      }) {};
+
       intel-oneapi-runtime-openmp-opencl-shared = pkgs.callPackage ({
         stdenv,
         fetchurl,
@@ -468,8 +499,8 @@
         fetchurl,
         autoPatchelfHook,
         zlib,
-        tbb_2021_11,
         dpkg,
+        intel-oneapi-runtime-tbb,
         intel-oneapi-runtime-compilers,
         intel-oneapi-runtime-openmp-opencl-shared
       }: stdenv.mkDerivation rec {
@@ -482,7 +513,7 @@
         };
 
         nativeBuildInputs = [ autoPatchelfHook dpkg ];
-        buildInputs = [ zlib tbb_2021_11 intel-oneapi-runtime-compilers intel-oneapi-runtime-openmp-opencl-shared ];
+        buildInputs = [ zlib intel-oneapi-runtime-tbb intel-oneapi-runtime-compilers intel-oneapi-runtime-openmp-opencl-shared ];
 
         dontConfigure = true;
         dontBuild = true;
@@ -495,9 +526,11 @@
 
           mkdir -p $out/etc/OpenCL/vendors
           echo $out/lib/libintelocl.so > $out/etc/OpenCL/vendors/intel-cpu.icd
+
+          echo "CL_CONFIG_DEVICES = cpu" > $out/lib/cl.cfg
         '';
       }) {
-        inherit (packages.${system}) intel-oneapi-runtime-compilers intel-oneapi-runtime-openmp-opencl-shared;
+        inherit (packages.${system}) intel-oneapi-runtime-compilers intel-oneapi-runtime-openmp-opencl-shared intel-oneapi-runtime-tbb;
       };
     });
 
